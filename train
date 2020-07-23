@@ -1,0 +1,187 @@
+# ----------------------------------------------------------------------------------------------------------------------
+# 导入一些第三方包
+# ----------------------------------------------------------------------------------------------------------------------
+
+import tensorflow as tf
+
+# ----------------------------------------------------------------------------------------------------------------------
+# EPOCHS = 20 --- 训练的轮数
+# BATCH_SIZE = 8 --- 一次喂入神经网络的数据个数
+# NUM_CLASSES = 11 --- 训练数据的类别数
+# image_height = 224 --- 喂入网络图片的高度
+# image_width = 224 --- 喂入网络图片的宽度
+# channels = 3 --- 训练图片的通道数
+# model_dir = "./model/model.h5" --- 保存模型的位置以及名称
+# train_dir = "./data/train/" --- 训练数据集的位置
+# test_dir = "./data/test/" --- 测试数据集的位置
+# ----------------------------------------------------------------------------------------------------------------------
+
+EPOCHS = 20
+BATCH_SIZE = 8
+NUM_CLASSES = 12
+image_height = 224
+image_width = 224
+channels = 3
+model_dir = "./model/model.h5"
+train_dir = "./data/train/"
+test_dir = "./data/test/"
+
+# ----------------------------------------------------------------------------------------------------------------------
+# def get_datasets(): --- 准备数据集
+# ImageDataGenerator()是keras.preprocessing.image模块中的图片生成器，同时也可以在batch中对数据进行增强，扩充数据集大小，增强模型的泛化能力。比如进行旋转，变形，归一化等等
+# rescale=1.0 / 255.0 --- 归一化处理
+# flow_from_directory --- 第一个参数是文件的位置，第二个参数是目标文件的尺寸，第三个参数是图片文件的颜色空间，
+# 第四个参数是一次喂入神经网络数据的个数，第五个参数是随机种子，第六个参数是是否打乱顺序，第七个参数是ImageDataGenerator的方法.flow_from_directory()加载图片数据流时，
+# 参数class_mode要设为‘categorical’，如果是二分类问题该值可设为‘binary’,
+# train_generator.samples --- 得到训练数据集的样本数量
+# ----------------------------------------------------------------------------------------------------------------------
+
+
+def get_datasets():
+    train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
+        rescale=1.0 / 255.0
+    )
+
+    train_generator = train_datagen.flow_from_directory(train_dir,
+                                                        target_size=(image_height, image_width),
+                                                        color_mode="rgb",
+                                                        batch_size=BATCH_SIZE,
+                                                        shuffle=True,
+                                                        class_mode="categorical")
+
+    test_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
+        rescale=1.0 /255.0
+    )
+    test_generator = test_datagen.flow_from_directory(test_dir,
+                                                      target_size=(image_height, image_width),
+                                                      color_mode="rgb",
+                                                      batch_size=BATCH_SIZE,
+                                                      shuffle=True,
+                                                      class_mode="categorical"
+                                                      )
+
+    train_num = train_generator.samples
+    test_num = test_generator.samples
+
+    return train_generator, test_generator, train_num, test_num
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# 神经网络的搭建 --- AlexNet
+# tf.keras.Sequential --- 在Keras中，可以组装图层来构建模型。 模型（通常）是图层图。 最常见的模型类型是一堆层：tf.keras.Sequential 模型。
+# tf.keras.layers.Conv2D --- 卷积层，第一个参数是卷积的数量，第二个参数是卷积核的尺寸，第三个参数是卷积核移动的步长，
+# 第四个参数是padding="valid"补边的方式，第五个参数是激活函数的选择，第六个参数是输入数据的尺寸
+# tf.keras.layers.MaxPool2D --- 池化 --- 最大池化 --- 第一个参数是池化核的尺寸，第二个参数是池化核移动的步长，第三个参数是补边方式
+# tf.keras.layers.BatchNormalization() --- 规范化
+# tf.keras.layers.Flatten() --- 将图像的格式从2d阵列1d阵列
+# tf.keras.layers.Dropout --- 训练的时候每次断开连接的概率
+# tf.keras.layers.Dense --- 全连接层
+# ----------------------------------------------------------------------------------------------------------------------
+
+def AlexNet():
+    model = tf.keras.Sequential([
+        # layer 1
+        tf.keras.layers.Conv2D(filters=96,
+                               kernel_size=(11, 11),
+                               strides=4,
+                               padding="valid",
+                               activation=tf.keras.activations.relu,
+                               input_shape=(224, 224, 3)),
+        tf.keras.layers.MaxPool2D(pool_size=(3, 3),
+                                  strides=2,
+                                  padding="valid"),
+        tf.keras.layers.BatchNormalization(),
+        # layer 2
+        tf.keras.layers.Conv2D(filters=256,
+                               kernel_size=(5, 5),
+                               strides=1,
+                               padding="same",
+                               activation=tf.keras.activations.relu),
+        tf.keras.layers.MaxPool2D(pool_size=(3, 3),
+                                  strides=2,
+                                  padding="same"),
+        tf.keras.layers.BatchNormalization(),
+        # layer 3
+        tf.keras.layers.Conv2D(filters=384,
+                               kernel_size=(3, 3),
+                               strides=1,
+                               padding="same",
+                               activation=tf.keras.activations.relu),
+        # layer 4
+        tf.keras.layers.Conv2D(filters=384,
+                               kernel_size=(3, 3),
+                               strides=1,
+                               padding="same",
+                               activation=tf.keras.activations.relu),
+        # layer 5
+        tf.keras.layers.Conv2D(filters=256,
+                               kernel_size=(3, 3),
+                               strides=1,
+                               padding="same",
+                               activation=tf.keras.activations.relu),
+        tf.keras.layers.MaxPool2D(pool_size=(3, 3),
+                                  strides=2,
+                                  padding="same"),
+        tf.keras.layers.BatchNormalization(),
+        # layer 6
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(units=4096,
+                              activation=tf.keras.activations.relu),
+        tf.keras.layers.Dropout(rate=0.2),
+        # layer 7
+        tf.keras.layers.Dense(units=4096,
+                              activation=tf.keras.activations.relu),
+        tf.keras.layers.Dropout(rate=0.2),
+        # layer 8
+        tf.keras.layers.Dense(units=NUM_CLASSES, activation=tf.keras.activations.softmax)
+    ])
+
+    return model
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# 网络的初始化 --- model = AlexNet()
+# model.compile --- 对神经网络训练参数是设置 --- tf.keras.losses.categorical_crossentropy --- 损失函数（交叉熵）
+# tf.keras.optimizers.Adam(learning_rate=0.0001) --- 优化器的选择，以及学习率的设置
+# metrics=['accuracy'] ---  List of metrics to be evaluated by the model during training and testing
+# return model --- 返回初始化之后的模型
+# ----------------------------------------------------------------------------------------------------------------------
+
+def get_model():
+    model = AlexNet()
+    model.compile(loss=tf.keras.losses.categorical_crossentropy,
+                  optimizer=tf.keras.optimizers.Adam(lr=0.00001),
+                  metrics=['accuracy'])
+    return model
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# if __name__ == '__main__': --- 主函数，程序运行的入口
+# train_generator, test_generator, train_num, test_num = get_datasets() --- 调用get_datasets()函数
+# model = get_model() --- 得到初始化的模型
+# model.summary() --- 输出模型各层的参数状况
+# model.fit_generator --- 两种训练模型方式fit和fit_generator --- 后者节省内存
+# 第一个参数是训练数据，第二个参数是训练的轮数，第三个参数是每一轮的步数，第四个参数是验证数据集，第五个参数是验证过程的步数、
+# model.save(model_dir) --- 模型保存
+# ----------------------------------------------------------------------------------------------------------------------
+
+if __name__ == '__main__':
+
+    train_generator, test_generator, train_num, test_num = get_datasets()
+    tensorboard = tf.keras.callbacks.TensorBoard(log_dir='log')
+    callback_list = [tensorboard]
+
+    model = get_model()
+    model.summary()
+
+    model.fit_generator(train_generator,
+                        epochs=EPOCHS,
+                        steps_per_epoch=train_num // BATCH_SIZE,
+                        validation_data=test_generator,
+                        validation_steps=test_num // BATCH_SIZE,
+                        callbacks=callback_list)
+
+    # model.save(model_dir)
+
+# ----------------------------------------------------------------------------------------------------------------------
