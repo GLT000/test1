@@ -1,0 +1,53 @@
+# ----------------------------------------------------------------------------------------------------------------------
+# 导入一些必要的第三方包
+# ----------------------------------------------------------------------------------------------------------------------
+
+import tensorflow as tf
+from PIL import Image
+import numpy as np
+import imutils
+import cv2
+import os
+
+# ----------------------------------------------------------------------------------------------------------------------
+# tf.keras.models.load_model('./model/model.h5') --- 加载训练好的模型
+# os.listdir('./test/') --- 得到test文件夹文件名称列表
+# l.sort() --- 列表中的元素按顺序排列
+# ----------------------------------------------------------------------------------------------------------------------
+
+model = tf.keras.models.load_model('./model/model.h5')
+names = ['apple', 'banana', 'blush', 'eyebrow', 'eyeshadow', 'foundation', 'lipstick', 'mascara', 'mixed', 'nail_polish', 'orange', 'perfume']
+l = os.listdir('./test/')
+l.sort()
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# for file in l: --- 遍历列表中的元素
+# if file.endswith('jpg'): --- 判断是否是图片文件
+# Image.open(image_path) --- 打开图像 img.resize((224, 224)) --- 改变图片的大小，使其符合喂入网络的要求
+# np.array(img).reshape(-1, 224, 224, 3).astype('float32') / 255 --- 转成numpy类型数据，归一化处理
+# model.predict(img) --- 调用模型，得到预测结果
+# [result.argmax() for result in prediction][0] --- 得到概率最大的手势的名称
+# print(final_prediction) --- 输出结果
+# ----------------------------------------------------------------------------------------------------------------------
+
+for file in l:
+    if file.endswith('jpg') or file.endswith('png'):
+        image_path = './test/' + file
+        img = Image.open(image_path)
+        img = img.resize((224, 224))
+        img = np.array(img).reshape(-1, 224, 224, 3).astype('float32') / 255
+
+        prediction = model.predict(img)
+        final_prediction = [result.argmax() for result in prediction][0]
+        probability = np.max(prediction)
+
+        image = cv2.imread(image_path)
+        image = imutils.resize(image, width=450)
+        cv2.putText(image, str(names[final_prediction]), (10, 40), cv2.FONT_HERSHEY_DUPLEX, 1, (255, 0, 0), 2)
+        cv2.imshow('', image)
+        cv2.waitKey(0)
+
+# ----------------------------------------------------------------------------------------------------------------------
+
+
